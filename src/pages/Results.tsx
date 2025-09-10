@@ -129,7 +129,7 @@ export default function Results() {
                     <div className="relative">
                       <div className="flex items-center justify-center mb-6">
                         <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm rounded-full px-4 py-2 shadow-sm">
-                          <span className="text-sm font-medium text-slate-600 dark:text-slate-300">📊 診断統計データ</span>
+                          <span className="text-sm font-medium text-slate-600 dark:text-slate-300">📊 診断統計データ（直近30件）</span>
                         </div>
                       </div>
                       
@@ -150,7 +150,7 @@ export default function Results() {
                               {statistics.average}
                             </div>
                             <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                              平均スコア
+                              直近30件の平均
                             </div>
                           </div>
                         </div>
@@ -160,7 +160,7 @@ export default function Results() {
                               {statistics.median}
                             </div>
                             <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                              中央値
+                              直近30件の中央値
                             </div>
                           </div>
                         </div>
@@ -199,8 +199,10 @@ export default function Results() {
                             )}
                           </span>
                         </div>
-                        <div className="text-xs text-slate-500 dark:text-slate-400">
-                          ※ただし、デフォルトの選択肢で回答している点数が0点の人を除く
+                        <div className="text-xs text-slate-500 dark:text-slate-400 space-y-1">
+                          <div>※ 統計は直近30件の回答データから計算</div>
+                          <div>※ 全て未回答（0点）の人は統計から除外</div>
+                          <div>※ データベースには最大1000件まで保存</div>
                         </div>
                       </div>
                     </div>
