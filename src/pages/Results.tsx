@@ -36,7 +36,7 @@ export default function Results() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const hasUnanswered = false; // 4も有効な回答として扱う
+  const hasUnanswered = state.answers.some((a) => a.value === 0);
   const result = useMemo(() => calculateScore(state.answers), [state.answers]);
   const [statistics, setStatistics] = useState({ count: 0, average: 0, median: 0, min: 0, max: 0, totalCount: 0 });
 
@@ -249,7 +249,7 @@ export default function Results() {
               <div className="space-y-8">
                 {QUESTIONS.map((q) => {
                   const answer = state.answers.find(a => a.questionId === q.id);
-                  const userValue = answer?.value || 4;
+                  const userValue = answer?.value || 0;
                   
                   return (
                     <div key={q.id} className="space-y-4">

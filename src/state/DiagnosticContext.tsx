@@ -16,7 +16,7 @@ type Action =
   | { type: 'reset' }
   | { type: 'loadAnswers'; answers: DiagnosticAnswer[] };
 
-const initialAnswers: DiagnosticAnswer[] = QUESTIONS.map((q) => ({ questionId: q.id, value: 4 }));
+const initialAnswers: DiagnosticAnswer[] = QUESTIONS.map((q) => ({ questionId: q.id, value: 0 }));
 
 const initialState: State = {
   answers: initialAnswers,
@@ -48,12 +48,12 @@ function reducer(state: State, action: Action): State {
     case 'loadAnswers': {
       const normalized = QUESTIONS.map((q) => {
         const found = action.answers.find((a) => a.questionId === q.id);
-        return { questionId: q.id, value: found ? found.value : 4 };
+        return { questionId: q.id, value: found ? found.value : 0 };
       });
       return { answers: normalized };
     }
     case 'reset':
-      return { answers: QUESTIONS.map((q) => ({ questionId: q.id, value: 4 })) };
+      return { answers: QUESTIONS.map((q) => ({ questionId: q.id, value: 0 })) };
     default:
       return state;
   }
@@ -73,8 +73,8 @@ const DiagnosticContext = createContext<Ctx | null>(null);
 
 export const DiagnosticProvider: React.FC<React.PropsWithChildren> = ({ children }) => {
   const [state, dispatch] = useReducer(reducer, initialState);
-  const answeredCount = state.answers.length; // 4も有効な回答として扱う
-  const allAnswered = true; // すべて回答済みとして扱う
+  const answeredCount = state.answers.filter((a) => a.value > 0).length;
+  const allAnswered = answeredCount === state.answers.length;
 
   const value = useMemo<Ctx>(
     () => ({

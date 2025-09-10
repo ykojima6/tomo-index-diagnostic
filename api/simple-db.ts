@@ -60,8 +60,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       
       console.log('GET request - Total responses in memory:', globalResponses.length);
       
-      // Filter out 0-point responses
-      const filtered = recent.filter(r => r.totalScore !== 0);
+      // Filter out responses where all answers are 0 (never answered)
+      const filtered = recent.filter(r => {
+        const hasValidAnswers = r.answers && r.answers.some(a => a.value > 0);
+        return hasValidAnswers;
+      });
       
       if (filtered.length === 0) {
         return res.status(200).json({

@@ -46,12 +46,12 @@ export default function Diagnostic() {
         e.preventDefault();
         onPrev();
       }
-      else if (e.key === 'ArrowRight' && idx < QUESTIONS.length - 1) {
+      else if (e.key === 'ArrowRight' && idx < QUESTIONS.length - 1 && answerValue > 0) {
         e.preventDefault();
         onNext();
       }
-      // Enter to finish if on last question
-      else if (e.key === 'Enter' && isLast) {
+      // Enter to finish if all answered
+      else if (e.key === 'Enter' && isLast && allAnswered) {
         e.preventDefault();
         onFinish();
       }
@@ -144,7 +144,7 @@ export default function Diagnostic() {
                       <kbd className="px-2 py-1 bg-white dark:bg-slate-800 rounded border text-xs">← →</kbd>
                       <span>質問の移動</span>
                     </div>
-                    {isLast && (
+                    {isLast && allAnswered && (
                       <div className="flex items-center gap-2">
                         <kbd className="px-2 py-1 bg-white dark:bg-slate-800 rounded border text-xs">Enter</kbd>
                         <span>診断完了</span>
@@ -168,7 +168,7 @@ export default function Diagnostic() {
                     className={`w-4 h-4 rounded-full transition-all duration-300 ${
                       i === idx
                         ? 'bg-gradient-to-r from-blue-600 to-purple-600 scale-125 shadow-lg'
-                        : state.answers[i]?.value !== 4
+                        : state.answers[i]?.value > 0
                         ? 'bg-gradient-to-r from-green-500 to-emerald-500 hover:scale-110'
                         : 'bg-slate-300 dark:bg-slate-600 hover:bg-slate-400 dark:hover:bg-slate-500 hover:scale-110'
                     }`}
@@ -196,7 +196,7 @@ export default function Diagnostic() {
               {!isLast && (
                 <Button 
                   onClick={onNext} 
-                  disabled={false} 
+                  disabled={answerValue === 0} 
                   aria-label="次へ"
                   className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
                 >
@@ -211,7 +211,7 @@ export default function Diagnostic() {
                 <Button 
                   variant="success"
                   onClick={onFinish} 
-                  disabled={false} 
+                  disabled={!allAnswered} 
                   aria-label="診断結果を見る"
                   className="flex items-center gap-2 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700"
                 >
@@ -223,6 +223,19 @@ export default function Diagnostic() {
               )}
             </div>
             
+            {/* エラーメッセージ */}
+            {!allAnswered && isLast && (
+              <div className="mt-6 p-4 rounded-xl bg-red-50/80 dark:bg-red-900/30 backdrop-blur-sm border border-red-200 dark:border-red-800 text-center">
+                <div className="flex items-center justify-center gap-2 text-red-600 dark:text-red-400">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.98-.833-2.75 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                  </svg>
+                  <span className="text-sm font-medium">
+                    未回答の質問があります。すべて回答してください。
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
