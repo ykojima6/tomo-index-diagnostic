@@ -59,24 +59,6 @@ export default function Results() {
     }
   };
 
-  const getScoreLevelInfo = (level: string) => {
-    switch (level) {
-      case 'very-good':
-        return { emoji: '🌟', color: 'text-green-600 dark:text-green-400', bgColor: 'bg-green-50 dark:bg-green-900/30', borderColor: 'border-green-200 dark:border-green-800' };
-      case 'good':
-        return { emoji: '😊', color: 'text-blue-600 dark:text-blue-400', bgColor: 'bg-blue-50 dark:bg-blue-900/30', borderColor: 'border-blue-200 dark:border-blue-800' };
-      case 'neutral':
-        return { emoji: '😐', color: 'text-yellow-600 dark:text-yellow-400', bgColor: 'bg-yellow-50 dark:bg-yellow-900/30', borderColor: 'border-yellow-200 dark:border-yellow-800' };
-      case 'low':
-        return { emoji: '😔', color: 'text-orange-600 dark:text-orange-400', bgColor: 'bg-orange-50 dark:bg-orange-900/30', borderColor: 'border-orange-200 dark:border-orange-800' };
-      case 'needs-improvement':
-        return { emoji: '😰', color: 'text-red-600 dark:text-red-400', bgColor: 'bg-red-50 dark:bg-red-900/30', borderColor: 'border-red-200 dark:border-red-800' };
-      default:
-        return { emoji: '📊', color: 'text-gray-600 dark:text-gray-400', bgColor: 'bg-gray-50 dark:bg-gray-900/30', borderColor: 'border-gray-200 dark:border-gray-800' };
-    }
-  };
-
-  const levelInfo = getScoreLevelInfo(result.scoreLevel);
 
   return (
     <main className="container py-8">
@@ -251,7 +233,6 @@ export default function Results() {
                 {QUESTIONS.map((q) => {
                   const answer = state.answers.find(a => a.questionId === q.id);
                   const userValue = answer?.value || 4;
-                  const isPositive = q.weight > 0;
                   
                   return (
                     <div key={q.id} className="space-y-4">

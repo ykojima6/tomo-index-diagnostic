@@ -5,7 +5,6 @@ import { useDiagnostic } from '../state/DiagnosticContext';
 import QuestionScale from '../components/forms/QuestionScale';
 import Button from '../components/ui/Button';
 import Progress from '../components/ui/Progress';
-import { Card, CardContent } from '../components/ui/Card';
 
 export default function Diagnostic() {
   const nav = useNavigate();
