@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card'
 import { QUESTIONS } from '../constants/questions';
 import { generateShareUrl, validateShareParams } from '../utils/share';
 import { getRecentStatistics } from '../utils/database';
+import { getStatisticsFromServer } from '../utils/api';
 
 export default function Results() {
   const { state, loadAnswers, reset } = useDiagnostic();
@@ -37,7 +38,23 @@ export default function Results() {
 
   const hasUnanswered = false; // 4も有効な回答として扱う
   const result = useMemo(() => calculateScore(state.answers), [state.answers]);
-  const statistics = useMemo(() => getRecentStatistics(30), []);
+  const [statistics, setStatistics] = useState({ count: 0, average: 0, median: 0, min: 0, max: 0, totalCount: 0 });
+
+  // Load statistics from server on component mount
+  useEffect(() => {
+    const loadStatistics = async () => {
+      try {
+        const serverStats = await getStatisticsFromServer(30);
+        setStatistics(serverStats);
+      } catch (error) {
+        // Fallback to local storage
+        const localStats = getRecentStatistics(30);
+        setStatistics(localStats);
+      }
+    };
+    
+    loadStatistics();
+  }, []);
 
   const positive = QUESTIONS.filter((q) => q.weight > 0).map((q) => ({
     label: `${q.id}. ${q.text}`,

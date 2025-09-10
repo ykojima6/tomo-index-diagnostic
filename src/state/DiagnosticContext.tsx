@@ -3,6 +3,7 @@ import { DiagnosticAnswer, DiagnosticResult } from '../types';
 import { QUESTIONS } from '../constants/questions';
 import { calculateScore } from '../utils/scoring';
 import { saveResponse } from '../utils/database';
+import { saveResponseToServer } from '../utils/api';
 
 type State = {
   answers: DiagnosticAnswer[];
@@ -31,8 +32,13 @@ function reducer(state: State, action: Action): State {
     }
     case 'compute': {
       const result = calculateScore(state.answers);
-      // 結果をローカルストレージに保存
+      // 結果をサーバーとローカルストレージの両方に保存
       try {
+        // Server-side save (primary)
+        saveResponseToServer(state.answers, result).catch(() => {
+          console.log('Server save failed, using local storage only');
+        });
+        // Local storage save (backup)
         saveResponse(state.answers, result);
       } catch (error) {
         console.error('Failed to save response:', error);
@@ -67,8 +73,8 @@ const DiagnosticContext = createContext<Ctx | null>(null);
 
 export const DiagnosticProvider: React.FC<React.PropsWithChildren> = ({ children }) => {
   const [state, dispatch] = useReducer(reducer, initialState);
-  const answeredCount = state.answers.length; // すべて回答済みとして扱う
-  const allAnswered = true; // 常に全て回答済み
+  const answeredCount = state.answers.filter((a) => a.value !== 4).length;
+  const allAnswered = answeredCount === state.answers.length;
 
   const value = useMemo<Ctx>(
     () => ({

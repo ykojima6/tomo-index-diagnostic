@@ -1,16 +1,27 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import { getAllResponses, getRecentStatistics, clearAllData, exportData } from '../utils/database';
+import { getStatisticsFromServer } from '../utils/api';
 
 export default function Admin() {
   const [responses, setResponses] = useState(getAllResponses());
   const [stats, setStats] = useState(getRecentStatistics(30));
 
-  const refreshData = () => {
+  const refreshData = async () => {
     setResponses(getAllResponses());
-    setStats(getRecentStatistics(30));
+    try {
+      const serverStats = await getStatisticsFromServer(30);
+      setStats(serverStats);
+    } catch (error) {
+      setStats(getRecentStatistics(30));
+    }
   };
+
+  // Load server statistics on mount
+  useEffect(() => {
+    refreshData();
+  }, []);
 
   const handleExport = () => {
     const data = exportData();

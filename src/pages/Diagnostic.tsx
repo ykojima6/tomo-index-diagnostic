@@ -8,7 +8,7 @@ import Progress from '../components/ui/Progress';
 
 export default function Diagnostic() {
   const nav = useNavigate();
-  const { state, setAnswer, allAnswered, answeredCount, compute } = useDiagnostic();
+  const { state, setAnswer, allAnswered, answeredCount, compute, reset } = useDiagnostic();
   const [idx, setIdx] = useState(0);
   const q = QUESTIONS[idx];
   const answerValue = useMemo(
@@ -30,6 +30,11 @@ export default function Diagnostic() {
 
   const progressPct = Math.round((answeredCount / QUESTIONS.length) * 100);
   const isLast = idx === QUESTIONS.length - 1;
+
+  // Reset answers when first entering diagnostic page
+  useEffect(() => {
+    reset();
+  }, []); // Empty dependency array means this runs once on mount
 
   // Keyboard shortcuts
   useEffect(() => {
