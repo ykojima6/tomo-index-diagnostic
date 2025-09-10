@@ -73,8 +73,8 @@ const DiagnosticContext = createContext<Ctx | null>(null);
 
 export const DiagnosticProvider: React.FC<React.PropsWithChildren> = ({ children }) => {
   const [state, dispatch] = useReducer(reducer, initialState);
-  const answeredCount = state.answers.filter((a) => a.value !== 4).length;
-  const allAnswered = answeredCount === state.answers.length;
+  const answeredCount = state.answers.length; // 4も有効な回答として扱う
+  const allAnswered = true; // すべて回答済みとして扱う
 
   const value = useMemo<Ctx>(
     () => ({

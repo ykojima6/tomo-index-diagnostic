@@ -9,8 +9,9 @@ interface ResponseRecord {
   negativeScore: number;
 }
 
-// Simple in-memory storage with Vercel Edge Config as backup
-let memoryCache: ResponseRecord[] = [];
+// Simple database using environment variable storage
+// For production, consider using Supabase, PlanetScale, or Firebase
+let globalResponses: ResponseRecord[] = [];
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // CORS headers
@@ -35,25 +36,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         negativeScore: result.negativeScore,
       };
 
-      // Add to memory cache
-      memoryCache.unshift(newResponse);
-      if (memoryCache.length > 1000) {
-        memoryCache = memoryCache.slice(0, 1000);
+      // Add to global array (will persist during function lifecycle)
+      globalResponses.unshift(newResponse);
+      if (globalResponses.length > 1000) {
+        globalResponses = globalResponses.slice(0, 1000);
       }
 
-      console.log('Response saved to memory:', newResponse.id, newResponse.totalScore, 'Total:', memoryCache.length);
-      return res.status(200).json({ success: true, id: newResponse.id });
+      console.log('Response saved:', newResponse.id, newResponse.totalScore, 'Total responses:', globalResponses.length);
+      
+      // Return success with current statistics
+      const filtered = globalResponses.filter(r => r.totalScore !== 0);
+      return res.status(200).json({ 
+        success: true, 
+        id: newResponse.id,
+        totalResponses: globalResponses.length,
+        filteredResponses: filtered.length
+      });
     }
 
     if (req.method === 'GET') {
       const count = parseInt(req.query.count as string) || 30;
+      const recent = globalResponses.slice(0, count);
       
-      // Get responses from memory
-      const recent = memoryCache.slice(0, count);
+      console.log('GET request - Total responses in memory:', globalResponses.length);
       
-      console.log('Retrieved responses from memory:', memoryCache.length, 'recent:', recent.length);
-      
-      // Filter out 0-point responses (all default answers)
+      // Filter out 0-point responses
       const filtered = recent.filter(r => r.totalScore !== 0);
       
       if (filtered.length === 0) {
@@ -71,7 +78,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const sum = scores.reduce((acc, score) => acc + score, 0);
       const average = sum / scores.length;
 
-      // Calculate median
       const sortedScores = [...scores].sort((a, b) => a - b);
       const median = sortedScores.length % 2 === 0
         ? (sortedScores[sortedScores.length / 2 - 1] + sortedScores[sortedScores.length / 2]) / 2
@@ -86,14 +92,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         totalCount: recent.length,
       };
 
-      console.log('Calculated statistics:', stats);
+      console.log('Returning statistics:', stats);
       return res.status(200).json(stats);
     }
 
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (error) {
     console.error('API error:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({ error: 'Internal server error', message: error.message });
   }
 }
 

@@ -1,7 +1,7 @@
 import { DiagnosticAnswer, DiagnosticResult } from '../types';
 
-const API_BASE = process.env.NODE_ENV === 'production' 
-  ? 'https://tomo-index-diagnostic-kup1li1qo-ykojima6-gmailcoms-projects.vercel.app/api'
+const API_BASE = typeof window !== 'undefined' && window.location.hostname !== 'localhost'
+  ? `${window.location.origin}/api`
   : '/api';
 
 export interface ApiStatistics {
@@ -19,7 +19,9 @@ export const saveResponseToServer = async (
   result: DiagnosticResult
 ): Promise<{ success: boolean; id?: string }> => {
   try {
-    const response = await fetch(`${API_BASE}/responses`, {
+    console.log('Saving to server:', { API_BASE, totalScore: result.totalScore });
+    
+    const response = await fetch(`${API_BASE}/simple-db`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -27,11 +29,17 @@ export const saveResponseToServer = async (
       body: JSON.stringify({ answers, result }),
     });
 
+    console.log('Server response status:', response.status);
+
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Server error:', errorText);
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
-    return await response.json();
+    const data = await response.json();
+    console.log('Save successful:', data);
+    return data;
   } catch (error) {
     console.error('Failed to save response to server:', error);
     return { success: false };
@@ -41,13 +49,21 @@ export const saveResponseToServer = async (
 // Get statistics from server
 export const getStatisticsFromServer = async (count: number = 30): Promise<ApiStatistics> => {
   try {
-    const response = await fetch(`${API_BASE}/responses?count=${count}`);
+    console.log('Fetching statistics from server:', { API_BASE, count });
+    
+    const response = await fetch(`${API_BASE}/simple-db?count=${count}`);
+    
+    console.log('Statistics response status:', response.status);
     
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Statistics error:', errorText);
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
-    return await response.json();
+    const data = await response.json();
+    console.log('Statistics received:', data);
+    return data;
   } catch (error) {
     console.error('Failed to fetch statistics from server:', error);
     // Fallback to local storage
@@ -59,7 +75,7 @@ export const getStatisticsFromServer = async (count: number = 30): Promise<ApiSt
 // Check if server API is available
 export const isServerAvailable = async (): Promise<boolean> => {
   try {
-    const response = await fetch(`${API_BASE}/responses?count=1`);
+    const response = await fetch(`${API_BASE}/simple-db?count=1`);
     return response.ok;
   } catch {
     return false;

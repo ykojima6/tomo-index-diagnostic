@@ -31,10 +31,7 @@ export default function Diagnostic() {
   const progressPct = Math.round((answeredCount / QUESTIONS.length) * 100);
   const isLast = idx === QUESTIONS.length - 1;
 
-  // Reset answers when first entering diagnostic page
-  useEffect(() => {
-    reset();
-  }, []); // Empty dependency array means this runs once on mount
+  // Manual reset only - don't auto-reset since 4 is a valid answer
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -79,9 +76,19 @@ export default function Diagnostic() {
             <h1 className="text-4xl lg:text-5xl font-bold text-slate-800 dark:text-slate-200 mb-4">
               ToMo指数診断
             </h1>
-            <p className="text-lg text-slate-600 dark:text-slate-300">
+            <p className="text-lg text-slate-600 dark:text-slate-300 mb-4">
               6つの質問に1〜7のスケールで回答してください
             </p>
+            {answeredCount > 0 && (
+              <Button 
+                onClick={reset}
+                variant="ghost"
+                size="sm"
+                className="text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300"
+              >
+                🔄 新しい診断を開始
+              </Button>
+            )}
           </header>
 
           {/* プログレスバー */}
