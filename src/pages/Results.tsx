@@ -7,7 +7,7 @@ import ScoreChart from '../components/charts/ScoreChart';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 import { QUESTIONS } from '../constants/questions';
 import { generateShareUrl, validateShareParams } from '../utils/share';
-import { getRecentStatistics } from '../utils/database';
+// Removed: getRecentStatistics import - no longer using localStorage fallback
 import { getStatisticsFromServer } from '../utils/api';
 
 export default function Results() {
@@ -39,20 +39,24 @@ export default function Results() {
   const hasUnanswered = state.answers.some((a) => a.value === 0);
   const result = useMemo(() => calculateScore(state.answers), [state.answers]);
   const [statistics, setStatistics] = useState({ count: 0, average: 0, median: 0, min: 0, max: 0, totalCount: 0 });
+  const [dataSource, setDataSource] = useState<'server' | 'loading' | 'error'>('loading');
 
   // Load statistics from server on component mount
   useEffect(() => {
     const loadStatistics = async () => {
       try {
+        setDataSource('loading');
         const serverStats = await getStatisticsFromServer(30);
         setStatistics(serverStats);
+        setDataSource('server');
       } catch (error) {
-        // Fallback to local storage
-        const localStats = getRecentStatistics(30);
-        setStatistics(localStats);
+        console.error('Failed to load statistics from server:', error);
+        // Don't use localStorage fallback - keep data consistent across devices
+        setDataSource('error');
+        setStatistics({ count: 0, average: 0, median: 0, min: 0, max: 0, totalCount: 0 });
       }
     };
-    
+
     loadStatistics();
   }, []);
 
@@ -120,7 +124,14 @@ export default function Results() {
               </div>
 
               {/* 統計データ（上部に配置） */}
-              {statistics.count > 0 && (
+              {dataSource === 'error' && (
+                <div className="mb-8 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                  <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                    ⚠️ サーバーに接続できないため、統計データを表示できません。
+                  </p>
+                </div>
+              )}
+              {dataSource === 'server' && statistics.count > 0 && (
                 <div className="mb-8">
                   <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-blue-900/50 dark:to-indigo-900/50 p-6 shadow-sm border border-slate-200/50 dark:border-slate-700/50">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-blue-400/10 to-indigo-400/10 rounded-full -translate-y-16 translate-x-16"></div>
@@ -129,7 +140,10 @@ export default function Results() {
                     <div className="relative">
                       <div className="flex items-center justify-center mb-6">
                         <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm rounded-full px-4 py-2 shadow-sm">
-                          <span className="text-sm font-medium text-slate-600 dark:text-slate-300">📊 診断統計データ（直近30件）</span>
+                          <span className="text-sm font-medium text-slate-600 dark:text-slate-300">
+                            📊 診断統計データ（直近30件）
+                            <span className="ml-2 text-xs text-green-600 dark:text-green-400">● サーバーデータ</span>
+                          </span>
                         </div>
                       </div>
                       
