@@ -40,6 +40,7 @@ export default function Results() {
   const result = useMemo(() => calculateScore(state.answers), [state.answers]);
   const [statistics, setStatistics] = useState({ count: 0, average: 0, median: 0, min: 0, max: 0, totalCount: 0 });
   const [dataSource, setDataSource] = useState<'server' | 'loading' | 'error'>('loading');
+  const [saveNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   // Load statistics from server on component mount
   useEffect(() => {
@@ -108,6 +109,23 @@ export default function Results() {
           </section>
         ) : (
           <>
+            {/* Save notification */}
+            {saveNotification && (
+              <div className={`mb-4 p-4 rounded-lg ${
+                saveNotification.type === 'success'
+                  ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800'
+                  : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800'
+              }`}>
+                <p className={`text-sm ${
+                  saveNotification.type === 'success'
+                    ? 'text-green-800 dark:text-green-200'
+                    : 'text-red-800 dark:text-red-200'
+                }`}>
+                  {saveNotification.message}
+                </p>
+              </div>
+            )}
+
             <section className="mb-8">
               {/* メインスコア表示 */}
               <div className="text-center mb-8">
