@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card'
 import { QUESTIONS } from '../constants/questions';
 import { generateShareUrl, validateShareParams } from '../utils/share';
 import { getRecentStatistics } from '../utils/database';
+import { getStatisticsFromServer } from '../utils/api';
 
 export default function Results() {
   const { state, loadAnswers, reset } = useDiagnostic();
@@ -35,9 +36,25 @@ export default function Results() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const hasUnanswered = false; // 4も有効な回答として扱う
+  const hasUnanswered = state.answers.some((a) => a.value === 0);
   const result = useMemo(() => calculateScore(state.answers), [state.answers]);
-  const statistics = useMemo(() => getRecentStatistics(30), []);
+  const [statistics, setStatistics] = useState({ count: 0, average: 0, median: 0, min: 0, max: 0, totalCount: 0 });
+
+  // Load statistics from server on component mount
+  useEffect(() => {
+    const loadStatistics = async () => {
+      try {
+        const serverStats = await getStatisticsFromServer(30);
+        setStatistics(serverStats);
+      } catch (error) {
+        // Fallback to local storage
+        const localStats = getRecentStatistics(30);
+        setStatistics(localStats);
+      }
+    };
+    
+    loadStatistics();
+  }, []);
 
   const positive = QUESTIONS.filter((q) => q.weight > 0).map((q) => ({
     label: `${q.id}. ${q.text}`,
@@ -59,24 +76,6 @@ export default function Results() {
     }
   };
 
-  const getScoreLevelInfo = (level: string) => {
-    switch (level) {
-      case 'very-good':
-        return { emoji: '🌟', color: 'text-green-600 dark:text-green-400', bgColor: 'bg-green-50 dark:bg-green-900/30', borderColor: 'border-green-200 dark:border-green-800' };
-      case 'good':
-        return { emoji: '😊', color: 'text-blue-600 dark:text-blue-400', bgColor: 'bg-blue-50 dark:bg-blue-900/30', borderColor: 'border-blue-200 dark:border-blue-800' };
-      case 'neutral':
-        return { emoji: '😐', color: 'text-yellow-600 dark:text-yellow-400', bgColor: 'bg-yellow-50 dark:bg-yellow-900/30', borderColor: 'border-yellow-200 dark:border-yellow-800' };
-      case 'low':
-        return { emoji: '😔', color: 'text-orange-600 dark:text-orange-400', bgColor: 'bg-orange-50 dark:bg-orange-900/30', borderColor: 'border-orange-200 dark:border-orange-800' };
-      case 'needs-improvement':
-        return { emoji: '😰', color: 'text-red-600 dark:text-red-400', bgColor: 'bg-red-50 dark:bg-red-900/30', borderColor: 'border-red-200 dark:border-red-800' };
-      default:
-        return { emoji: '📊', color: 'text-gray-600 dark:text-gray-400', bgColor: 'bg-gray-50 dark:bg-gray-900/30', borderColor: 'border-gray-200 dark:border-gray-800' };
-    }
-  };
-
-  const levelInfo = getScoreLevelInfo(result.scoreLevel);
 
   return (
     <main className="container py-8">
@@ -130,7 +129,7 @@ export default function Results() {
                     <div className="relative">
                       <div className="flex items-center justify-center mb-6">
                         <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm rounded-full px-4 py-2 shadow-sm">
-                          <span className="text-sm font-medium text-slate-600 dark:text-slate-300">📊 診断統計データ</span>
+                          <span className="text-sm font-medium text-slate-600 dark:text-slate-300">📊 診断統計データ（直近30件）</span>
                         </div>
                       </div>
                       
@@ -151,7 +150,7 @@ export default function Results() {
                               {statistics.average}
                             </div>
                             <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                              平均スコア
+                              直近30件の平均
                             </div>
                           </div>
                         </div>
@@ -161,7 +160,7 @@ export default function Results() {
                               {statistics.median}
                             </div>
                             <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                              中央値
+                              直近30件の中央値
                             </div>
                           </div>
                         </div>
@@ -200,8 +199,10 @@ export default function Results() {
                             )}
                           </span>
                         </div>
-                        <div className="text-xs text-slate-500 dark:text-slate-400">
-                          ※ただし、デフォルトの選択肢で回答している点数が0点の人を除く
+                        <div className="text-xs text-slate-500 dark:text-slate-400 space-y-1">
+                          <div>※ 統計は直近30件の回答データから計算</div>
+                          <div>※ 全て未回答（0点）の人は統計から除外</div>
+                          <div>※ データベースには最大1000件まで保存</div>
                         </div>
                       </div>
                     </div>
@@ -250,8 +251,7 @@ export default function Results() {
               <div className="space-y-8">
                 {QUESTIONS.map((q) => {
                   const answer = state.answers.find(a => a.questionId === q.id);
-                  const userValue = answer?.value || 4;
-                  const isPositive = q.weight > 0;
+                  const userValue = answer?.value || 0;
                   
                   return (
                     <div key={q.id} className="space-y-4">

@@ -67,9 +67,13 @@ export const getRecentStatistics = (count: number = 30) => {
     };
   }
 
-  // 0点（すべてデフォルト値4で回答）の人を除外
+  // 全てデフォルト回答（0で回答していない）の人を除外
   const filteredScores = recent
-    .filter(r => r.totalScore !== 0)
+    .filter(r => {
+      // 全ての回答が0（未回答）でなければ有効
+      const hasValidAnswers = r.answers && r.answers.some(a => a.value > 0);
+      return hasValidAnswers;
+    })
     .map(r => r.totalScore);
 
   if (filteredScores.length === 0) {
