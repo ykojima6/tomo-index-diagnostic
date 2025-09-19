@@ -16,6 +16,7 @@ export default function Admin() {
   });
   const [statsStatus, setStatsStatus] = useState<'loading' | 'server' | 'error'>('loading');
   const [statsError, setStatsError] = useState<string | null>(null);
+  const [serverTotalCount, setServerTotalCount] = useState<number>(0);
 
   const refreshData = async () => {
     setResponses(getAllResponses());
@@ -24,6 +25,7 @@ export default function Admin() {
     try {
       const serverStats = await getStatisticsFromServer(30);
       setStats(serverStats);
+      setServerTotalCount(serverStats.totalCount || 0);
       setStatsStatus('server');
     } catch (error) {
       console.error('Failed to load statistics from server:', error);
@@ -35,6 +37,7 @@ export default function Admin() {
         max: 0,
         totalCount: 0,
       });
+      setServerTotalCount(0);
       setStatsStatus('error');
       setStatsError('サーバーから統計データを取得できませんでした。時間をおいて再度お試しください。');
     }
@@ -84,7 +87,15 @@ export default function Admin() {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                <div>総回答数: {responses.length}件</div>
+                <div>
+                  総回答数: {statsStatus === 'server' ? serverTotalCount : '-'}件
+                  {statsStatus === 'server' && (
+                    <span className="ml-2 text-xs text-green-600 dark:text-green-400">● サーバーデータ</span>
+                  )}
+                </div>
+                <div className="text-sm text-gray-500">
+                  ローカルデータ: {responses.length}件
+                </div>
                 {statsStatus === 'loading' && (
                   <div className="text-sm text-gray-500">統計データを読み込み中です...</div>
                 )}

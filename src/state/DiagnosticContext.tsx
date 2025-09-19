@@ -33,16 +33,23 @@ function reducer(state: State, action: Action): State {
     case 'compute': {
       const result = calculateScore(state.answers);
       // 結果をサーバーとローカルストレージの両方に保存
-      try {
-        // Server-side save (primary)
-        saveResponseToServer(state.answers, result).catch(() => {
-          console.log('Server save failed, using local storage only');
+      // Server-side save (primary)
+      saveResponseToServer(state.answers, result)
+        .then((res) => {
+          console.log('Response saved to server with ID:', res.id);
+        })
+        .catch((error) => {
+          console.error('Failed to save to server:', error);
+          // Continue with local save even if server save fails
         });
-        // Local storage save (backup)
+
+      // Local storage save (backup) - always save locally
+      try {
         saveResponse(state.answers, result);
       } catch (error) {
-        console.error('Failed to save response:', error);
+        console.error('Failed to save to local storage:', error);
       }
+
       return { ...state, result };
     }
     case 'loadAnswers': {

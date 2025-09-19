@@ -14,12 +14,12 @@ export interface ApiStatistics {
 
 // Save response to server
 export const saveResponseToServer = async (
-  answers: DiagnosticAnswer[], 
+  answers: DiagnosticAnswer[],
   result: DiagnosticResult
-): Promise<{ success: boolean; id?: string }> => {
+): Promise<{ success: boolean; id?: string; error?: string }> => {
   try {
     console.log('Saving to server:', { API_BASE, totalScore: result.totalScore });
-    
+
     const response = await fetch(`${API_BASE}/simple-db`, {
       method: 'POST',
       headers: {
@@ -41,7 +41,8 @@ export const saveResponseToServer = async (
     return data;
   } catch (error) {
     console.error('Failed to save response to server:', error);
-    return { success: false };
+    // Throw the error instead of swallowing it
+    throw error;
   }
 };
 
