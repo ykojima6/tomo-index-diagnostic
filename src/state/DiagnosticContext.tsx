@@ -2,19 +2,20 @@ import React, { createContext, useContext, useMemo, useReducer } from 'react';
 import { DiagnosticAnswer, DiagnosticResult } from '../types';
 import { QUESTIONS } from '../constants/questions';
 import { calculateScore } from '../utils/scoring';
-import { saveResponse } from '../utils/database';
 import { saveResponseToServer } from '../utils/api';
 
 type State = {
   answers: DiagnosticAnswer[];
   result?: DiagnosticResult;
+  saveError?: string;
 };
 
 type Action =
   | { type: 'setAnswer'; questionId: number; value: number }
   | { type: 'compute' }
   | { type: 'reset' }
-  | { type: 'loadAnswers'; answers: DiagnosticAnswer[] };
+  | { type: 'loadAnswers'; answers: DiagnosticAnswer[] }
+  | { type: 'setSaveError'; error: string | undefined };
 
 const initialAnswers: DiagnosticAnswer[] = QUESTIONS.map((q) => ({ questionId: q.id, value: 0 }));
 
@@ -32,18 +33,20 @@ function reducer(state: State, action: Action): State {
     }
     case 'compute': {
       const result = calculateScore(state.answers);
-      // 結果をサーバーとローカルストレージの両方に保存
-      try {
-        // Server-side save (primary)
-        saveResponseToServer(state.answers, result).catch(() => {
-          console.log('Server save failed, using local storage only');
+      // Save to server only - no local storage fallback
+      saveResponseToServer(state.answers, result)
+        .then((res) => {
+          console.log('Response saved to server with ID:', res.id);
+        })
+        .catch((error) => {
+          console.error('Failed to save to server:', error);
+          // Note: We don't save locally on error to maintain data consistency
         });
-        // Local storage save (backup)
-        saveResponse(state.answers, result);
-      } catch (error) {
-        console.error('Failed to save response:', error);
-      }
-      return { ...state, result };
+
+      return { ...state, result, saveError: undefined };
+    }
+    case 'setSaveError': {
+      return { ...state, saveError: action.error };
     }
     case 'loadAnswers': {
       const normalized = QUESTIONS.map((q) => {
@@ -53,7 +56,7 @@ function reducer(state: State, action: Action): State {
       return { answers: normalized };
     }
     case 'reset':
-      return { answers: QUESTIONS.map((q) => ({ questionId: q.id, value: 0 })) };
+      return { answers: QUESTIONS.map((q) => ({ questionId: q.id, value: 0 })), saveError: undefined };
     default:
       return state;
   }

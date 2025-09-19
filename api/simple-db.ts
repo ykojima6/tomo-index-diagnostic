@@ -1,17 +1,12 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import {
+  fetchAllResponses,
+  fetchRecentResponses,
+  persistResponse,
+  type ResponseRecord,
+} from './response-store';
 
-interface ResponseRecord {
-  id: string;
-  timestamp: number;
-  answers: Array<{ questionId: number; value: number }>;
-  totalScore: number;
-  positiveScore: number;
-  negativeScore: number;
-}
-
-// Simple database using environment variable storage
-// For production, consider using Supabase, PlanetScale, or Firebase
-let globalResponses: ResponseRecord[] = [];
+const DEFAULT_COUNT = 30;
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // CORS headers
@@ -25,40 +20,67 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     if (req.method === 'POST') {
-      const { answers, result } = req.body;
+      const { answers, result } = req.body ?? {};
+
+      if (!Array.isArray(answers) || !result || typeof result !== 'object') {
+        return res.status(400).json({ error: 'Invalid payload' });
+      }
+
+      if (
+        typeof result.totalScore !== 'number' ||
+        typeof result.positiveScore !== 'number' ||
+        typeof result.negativeScore !== 'number'
+      ) {
+        return res.status(400).json({ error: 'Invalid result payload' });
+      }
+
+      const sanitizedAnswers = answers
+        .filter((entry) => entry && typeof entry === 'object')
+        .map((entry) => ({
+          questionId: Number((entry as { questionId: unknown }).questionId),
+          value: Number((entry as { value: unknown }).value),
+        }))
+        .filter((entry) => Number.isFinite(entry.questionId) && Number.isFinite(entry.value));
       
       const newResponse: ResponseRecord = {
         id: generateId(),
         timestamp: Date.now(),
-        answers,
+        answers: sanitizedAnswers,
         totalScore: result.totalScore,
         positiveScore: result.positiveScore,
         negativeScore: result.negativeScore,
       };
 
-      // Add to global array (will persist during function lifecycle)
-      globalResponses.unshift(newResponse);
-      if (globalResponses.length > 1000) {
-        globalResponses = globalResponses.slice(0, 1000);
-      }
+      const { persistedToKv } = await persistResponse(newResponse);
+      const { responses } = await fetchAllResponses();
+      const filteredResponses = responses.filter((r) => r.totalScore !== 0).length;
 
-      console.log('Response saved:', newResponse.id, newResponse.totalScore, 'Total responses:', globalResponses.length);
+      console.log('Response saved:', {
+        id: newResponse.id,
+        totalScore: newResponse.totalScore,
+        persistedToKv,
+        totalResponses: responses.length,
+      });
       
       // Return success with current statistics
-      const filtered = globalResponses.filter(r => r.totalScore !== 0);
       return res.status(200).json({ 
         success: true, 
         id: newResponse.id,
-        totalResponses: globalResponses.length,
-        filteredResponses: filtered.length
+        totalResponses: responses.length,
+        filteredResponses
       });
     }
 
     if (req.method === 'GET') {
-      const count = parseInt(req.query.count as string) || 30;
-      const recent = globalResponses.slice(0, count);
-      
-      console.log('GET request - Total responses in memory:', globalResponses.length);
+      const requested = Number.parseInt(req.query.count as string, 10);
+      const count = Number.isFinite(requested) && requested > 0 ? requested : DEFAULT_COUNT;
+      const { responses: recent, source } = await fetchRecentResponses(count);
+
+      console.log('GET request:', {
+        source,
+        requested: count,
+        returned: recent.length,
+      });
       
       // Filter out responses where all answers are 0 (never answered)
       const filtered = recent.filter(r => {
@@ -102,7 +124,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (error) {
     console.error('API error:', error);
-    return res.status(500).json({ error: 'Internal server error', message: error.message });
+    return res.status(500).json({ error: 'Internal server error', message: error instanceof Error ? error.message : 'Unknown error' });
   }
 }
 

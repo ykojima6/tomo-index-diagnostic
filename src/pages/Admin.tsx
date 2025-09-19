@@ -1,20 +1,45 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 import Button from '../components/ui/Button';
-import { getAllResponses, getRecentStatistics, clearAllData, exportData } from '../utils/database';
-import { getStatisticsFromServer } from '../utils/api';
+import { getAllResponses, clearAllData, exportData } from '../utils/database';
+import { getStatisticsFromServer, type ApiStatistics } from '../utils/api';
 
 export default function Admin() {
   const [responses, setResponses] = useState(getAllResponses());
-  const [stats, setStats] = useState(getRecentStatistics(30));
+  const [stats, setStats] = useState<ApiStatistics>({
+    count: 0,
+    average: 0,
+    median: 0,
+    min: 0,
+    max: 0,
+    totalCount: 0,
+  });
+  const [statsStatus, setStatsStatus] = useState<'loading' | 'server' | 'error'>('loading');
+  const [statsError, setStatsError] = useState<string | null>(null);
+  const [serverTotalCount, setServerTotalCount] = useState<number>(0);
 
   const refreshData = async () => {
     setResponses(getAllResponses());
+    setStatsStatus('loading');
+    setStatsError(null);
     try {
       const serverStats = await getStatisticsFromServer(30);
       setStats(serverStats);
+      setServerTotalCount(serverStats.totalCount || 0);
+      setStatsStatus('server');
     } catch (error) {
-      setStats(getRecentStatistics(30));
+      console.error('Failed to load statistics from server:', error);
+      setStats({
+        count: 0,
+        average: 0,
+        median: 0,
+        min: 0,
+        max: 0,
+        totalCount: 0,
+      });
+      setServerTotalCount(0);
+      setStatsStatus('error');
+      setStatsError('サーバーから統計データを取得できませんでした。時間をおいて再度お試しください。');
     }
   };
 
@@ -61,16 +86,36 @@ export default function Admin() {
               <CardTitle>統計データ</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-2">
-                <div>総回答数: {responses.length}件</div>
-                <div>有効回答数: {stats.count}件（0点除く）</div>
-                <div>直近30件の平均: {stats.average}点</div>
-                <div>直近30件の中央値: {stats.median}点</div>
-                <div>最低点: {stats.min}点</div>
-                <div>最高点: {stats.max}点</div>
-                <div className="text-xs text-gray-500 mt-2">
-                  ※統計値は0点（デフォルト回答）を除外して計算
+              <div className="space-y-3">
+                <div>
+                  総回答数: {statsStatus === 'server' ? serverTotalCount : '-'}件
+                  {statsStatus === 'server' && (
+                    <span className="ml-2 text-xs text-green-600 dark:text-green-400">● サーバーデータ</span>
+                  )}
                 </div>
+                <div className="text-sm text-gray-500">
+                  ローカルデータ: {responses.length}件
+                </div>
+                {statsStatus === 'loading' && (
+                  <div className="text-sm text-gray-500">統計データを読み込み中です...</div>
+                )}
+                {statsStatus === 'error' && statsError && (
+                  <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-600 dark:border-red-800 dark:bg-red-900/30 dark:text-red-300">
+                    {statsError}
+                  </div>
+                )}
+                {statsStatus === 'server' && (
+                  <>
+                    <div>有効回答数: {stats.count}件（0点除く）</div>
+                    <div>直近30件の平均: {stats.average}点</div>
+                    <div>直近30件の中央値: {stats.median}点</div>
+                    <div>最低点: {stats.min}点</div>
+                    <div>最高点: {stats.max}点</div>
+                    <div className="text-xs text-gray-500 mt-2">
+                      ※統計値は0点（デフォルト回答）を除外して計算
+                    </div>
+                  </>
+                )}
               </div>
             </CardContent>
           </Card>

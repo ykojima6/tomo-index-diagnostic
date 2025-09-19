@@ -1,8 +1,7 @@
 import { DiagnosticAnswer, DiagnosticResult } from '../types';
 
-const API_BASE = typeof window !== 'undefined' && window.location.hostname !== 'localhost'
-  ? `${window.location.origin}/api`
-  : '/api';
+// Use environment variable for API base URL, fallback to relative path
+const API_BASE = import.meta.env.VITE_API_BASE || '/api';
 
 export interface ApiStatistics {
   count: number;
@@ -15,12 +14,12 @@ export interface ApiStatistics {
 
 // Save response to server
 export const saveResponseToServer = async (
-  answers: DiagnosticAnswer[], 
+  answers: DiagnosticAnswer[],
   result: DiagnosticResult
-): Promise<{ success: boolean; id?: string }> => {
+): Promise<{ success: boolean; id?: string; error?: string }> => {
   try {
     console.log('Saving to server:', { API_BASE, totalScore: result.totalScore });
-    
+
     const response = await fetch(`${API_BASE}/simple-db`, {
       method: 'POST',
       headers: {
@@ -42,34 +41,28 @@ export const saveResponseToServer = async (
     return data;
   } catch (error) {
     console.error('Failed to save response to server:', error);
-    return { success: false };
+    // Throw the error instead of swallowing it
+    throw error;
   }
 };
 
 // Get statistics from server
 export const getStatisticsFromServer = async (count: number = 30): Promise<ApiStatistics> => {
-  try {
-    console.log('Fetching statistics from server:', { API_BASE, count });
-    
-    const response = await fetch(`${API_BASE}/simple-db?count=${count}`);
-    
-    console.log('Statistics response status:', response.status);
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Statistics error:', errorText);
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
+  console.log('Fetching statistics from server:', { API_BASE, count });
 
-    const data = await response.json();
-    console.log('Statistics received:', data);
-    return data;
-  } catch (error) {
-    console.error('Failed to fetch statistics from server:', error);
-    // Fallback to local storage
-    const { getRecentStatistics } = await import('./database');
-    return getRecentStatistics(count);
+  const response = await fetch(`${API_BASE}/simple-db?count=${count}`);
+
+  console.log('Statistics response status:', response.status);
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Statistics error:', errorText);
+    throw new Error(`Statistics request failed (${response.status}): ${errorText}`);
   }
+
+  const data = await response.json();
+  console.log('Statistics received:', data);
+  return data;
 };
 
 // Check if server API is available

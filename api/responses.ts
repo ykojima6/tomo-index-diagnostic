@@ -1,16 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { fetchRecentResponses, persistResponse, type ResponseRecord } from './response-store';
 
-interface ResponseRecord {
-  id: string;
-  timestamp: number;
-  answers: Array<{ questionId: number; value: number }>;
-  totalScore: number;
-  positiveScore: number;
-  negativeScore: number;
-}
-
-// Simple in-memory storage with Vercel Edge Config as backup
-let memoryCache: ResponseRecord[] = [];
+const DEFAULT_COUNT = 30;
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // CORS headers
@@ -24,34 +15,57 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     if (req.method === 'POST') {
-      const { answers, result } = req.body;
-      
+      const { answers, result } = req.body ?? {};
+
+      if (!Array.isArray(answers) || !result || typeof result !== 'object') {
+        return res.status(400).json({ error: 'Invalid payload' });
+      }
+
+      if (
+        typeof result.totalScore !== 'number' ||
+        typeof result.positiveScore !== 'number' ||
+        typeof result.negativeScore !== 'number'
+      ) {
+        return res.status(400).json({ error: 'Invalid result payload' });
+      }
+
+      const sanitizedAnswers = answers
+        .filter((entry) => entry && typeof entry === 'object')
+        .map((entry) => ({
+          questionId: Number((entry as { questionId: unknown }).questionId),
+          value: Number((entry as { value: unknown }).value),
+        }))
+        .filter((entry) => Number.isFinite(entry.questionId) && Number.isFinite(entry.value));
+
       const newResponse: ResponseRecord = {
         id: generateId(),
         timestamp: Date.now(),
-        answers,
+        answers: sanitizedAnswers,
         totalScore: result.totalScore,
         positiveScore: result.positiveScore,
         negativeScore: result.negativeScore,
       };
 
-      // Add to memory cache
-      memoryCache.unshift(newResponse);
-      if (memoryCache.length > 1000) {
-        memoryCache = memoryCache.slice(0, 1000);
-      }
-
-      console.log('Response saved to memory:', newResponse.id, newResponse.totalScore, 'Total:', memoryCache.length);
+      const { persistedToKv } = await persistResponse(newResponse);
+      console.log('Response saved:', {
+        id: newResponse.id,
+        totalScore: newResponse.totalScore,
+        persistedToKv,
+      });
       return res.status(200).json({ success: true, id: newResponse.id });
     }
 
     if (req.method === 'GET') {
-      const count = parseInt(req.query.count as string) || 30;
-      
-      // Get responses from memory
-      const recent = memoryCache.slice(0, count);
-      
-      console.log('Retrieved responses from memory:', memoryCache.length, 'recent:', recent.length);
+      const requested = Number.parseInt(req.query.count as string, 10);
+      const count = Number.isFinite(requested) && requested > 0 ? requested : DEFAULT_COUNT;
+
+      const { responses: recent, source } = await fetchRecentResponses(count);
+
+      console.log('Retrieved responses:', {
+        source,
+        requested: count,
+        returned: recent.length,
+      });
       
       // Filter out 0-point responses (all default answers)
       const filtered = recent.filter(r => r.totalScore !== 0);
